@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require("cors");
 require('dotenv').config()
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -27,7 +28,7 @@ const verifyJwt = (req, res, next) => {
 }
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.cqf2amb.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -93,6 +94,18 @@ async function run() {
             const updatedDoc = {
                 $set: {
                     role: 'admin'
+                }
+            };
+            const result = await usersCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
+        app.patch('/users/instructor/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: 'instructor'
                 }
             };
             const result = await usersCollection.updateOne(filter, updatedDoc);
