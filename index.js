@@ -45,7 +45,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
         const usersCollection = client.db('MeditationDB').collection('users')
-        const useCollection = client.db('MeditationDB').collection('users')
+        const classCollection = client.db('MeditationDB').collection('classes')
 
 
         app.post('/jwt', (req, res) => {
@@ -56,7 +56,7 @@ async function run() {
 
 
         app.get('/users', async (req, res) => {
-            const result = await useCollection.find().toArray();
+            const result = await usersCollection.find().toArray();
             res.send(result)
         })
 
@@ -81,9 +81,10 @@ async function run() {
             }
 
             const user = await usersCollection.findOne(query);
-            const result = { admin: user?.role === 'instructor' }
+            const result = { instructor: user?.role === 'instructor' }
             res.send(result)
         })
+
 
 
         app.post('/users', async (req, res) => {
@@ -100,11 +101,47 @@ async function run() {
 
         })
 
+
+        app.get('/myClasses', verifyJwt, async (req, res) => {
+            try {
+                const email = req.query.email;
+                const query = { instructorEmail: email };
+                const user = await classCollection.find(query).toArray();
+                res.send(user);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+
+        app.get('/classes', async (req, res) => {
+            const result = await classCollection.find().toArray();
+            res.send(result);
+        })
+
+
         app.post('/classes', async (req, res) => {
             const classes = req.body;
             const result = await classCollection.insertOne(classes);
             res.send(result);
         })
+
+        app.patch('/classes', async (req, res) => {
+            const id = req.query.id;
+            const status = req.query.status;
+            let updatedDoc = {};
+            if (status === 'approved') {
+                updatedDoc = {
+                    $set: {
+                        status: 'approved'
+                    }
+                }
+            }
+            const filter = { _id: new ObjectId(id) };
+            const result = await classCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
 
 
         app.patch('/users/admin/:id', async (req, res) => {
