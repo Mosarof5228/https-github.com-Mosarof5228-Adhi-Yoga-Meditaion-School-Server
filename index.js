@@ -45,6 +45,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
         const usersCollection = client.db('MeditationDB').collection('users')
+        const useCollection = client.db('MeditationDB').collection('users')
 
 
         app.post('/jwt', (req, res) => {
@@ -54,12 +55,24 @@ async function run() {
         })
 
 
-        app.get('/users', verifyJwt, async (req, res) => {
-            const result = await usersCollection.find().toArray();
+        app.get('/users', async (req, res) => {
+            const result = await useCollection.find().toArray();
             res.send(result)
         })
 
-        app.get('/users/admin/:email', async (req, res) => {
+        app.get('/users/admin/:email', verifyJwt, async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+
+            if (req.decoded.email !== email) {
+                res.send({ instructor: false })
+            }
+
+            const user = await usersCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' }
+            res.send(result)
+        })
+        app.get('/users/instructor/:email', verifyJwt, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
 
@@ -68,7 +81,7 @@ async function run() {
             }
 
             const user = await usersCollection.findOne(query);
-            const result = { admin: user?.role === 'admin' }
+            const result = { admin: user?.role === 'instructor' }
             res.send(result)
         })
 
@@ -85,6 +98,12 @@ async function run() {
             const result = await usersCollection.insertOne(user);
             res.send(result);
 
+        })
+
+        app.post('/classes', async (req, res) => {
+            const classes = req.body;
+            const result = await classCollection.insertOne(classes);
+            res.send(result);
         })
 
 
