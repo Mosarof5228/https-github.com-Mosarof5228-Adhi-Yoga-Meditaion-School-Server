@@ -46,6 +46,7 @@ async function run() {
         await client.connect();
         const usersCollection = client.db('MeditationDB').collection('users')
         const classCollection = client.db('MeditationDB').collection('classes')
+        const selectClassCollection = client.db('MeditationDB').collection('selectedClasses')
 
 
         app.post('/jwt', (req, res) => {
@@ -114,15 +115,52 @@ async function run() {
             }
         });
 
+        app.get('/approvedClasses', async (req, res) => {
+            try {
+                const result = await classCollection.find({ status: 'approved' }).toArray();
+                res.send(result);
+            } catch (error) {
+                console.error('Error fetching approved classes:', error);
+                res.status(500).json({ message: 'Internal Server Error' });
+            }
+        });
+
+
         app.get('/classes', async (req, res) => {
             const result = await classCollection.find().toArray();
             res.send(result);
         })
 
 
+
         app.post('/classes', async (req, res) => {
             const classes = req.body;
             const result = await classCollection.insertOne(classes);
+            res.send(result);
+        })
+
+        app.get('/selected', verifyJwt, async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([])
+            }
+
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'forbidden Access' })
+            }
+
+            const query = { email: email };
+            const result = await selectClassCollection.find(query).toArray();
+            res.send(result);
+        })
+
+
+
+
+        app.post('/selectedClass', async (req, res) => {
+            const classes = req.body;
+            const result = await selectClassCollection.insertOne(classes);
             res.send(result);
         })
 
@@ -167,6 +205,85 @@ async function run() {
             const result = await usersCollection.updateOne(filter, updatedDoc);
             res.send(result);
         })
+
+        //------------------ payment-----------
+        // app.get('/enrolled/:email', async (req, res) => {
+        //     const email = req.params.email;
+        //     const query = { email: email };
+        //     const result = await enrolledCollection.find(query).toArray();
+        //     res.send(result);
+        // })
+
+        // app.patch('/totalStudent/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const filter = { _id: new ObjectId(id) };
+        //     const enrollClass = await classCollection.findOne(filter)
+        //     const totalStudent = {
+        //         $set: {
+        //             totalStudent: enrollClass.totalStudent + 1
+        //         }
+        //     }
+        //     const result = await classCollection.updateOne(filter, totalStudent);
+        //     res.send(result)
+        // })
+
+        // app.post('/create-payment-intent', verifyJwt, async (req, res) => {
+        //     const { price } = req.body;
+        //     const amount = parseInt(price * 100);
+        //     const paymentIntent = await stripe.paymentIntents.create({
+        //         amount: amount,
+        //         currency: 'usd',
+        //         payment_method_types: ['card']
+        //     });
+
+        //     res.send({
+        //         clientSecret: paymentIntent.client_secret
+        //     })
+        // })
+
+        // app.post('/payments', verifyJwt, async (req, res) => {
+        //     const payment = req.body;
+        //     const insertResult = await paymentCollection.insertOne(payment);
+
+        //     const query = { _id: new ObjectId(payment.selectedClass) };
+        //     const deleteResult = await selectClassCollection.deleteOne(query);
+
+        //     // Update the seat count for each selected class
+        //     const filter = { _id: new ObjectId(payment.enrolledClass) };
+        //     const options = {
+        //         projection: {
+        //             _id: 0,
+        //             className: 1,
+        //             classImage: 1,
+        //             instructorEmail: 1,
+        //             instructorName: 1,
+        //             price: 1,
+        //             seats: 1,
+        //         },
+        //     };
+
+        //     const enrolled = await classCollection.findOne(filter, options);
+        //     enrolled.email = payment.email
+        //     const enrolledResult = await enrolledCollection.insertOne(enrolled)
+
+        //     const totalUpdateSeats = {
+        //         $set: {
+        //             seats: enrolled.seats - 1,
+        //         },
+        //     };
+        //     const updateSeats = await classCollection.updateOne(
+        //         filter,
+        //         totalUpdateSeats
+        //     );
+
+        //     res.send({ insertResult, deleteResult, updateSeats, enrolledResult });
+        // });
+
+
+        // -------------------payment----------
+
+
+
 
 
         // Send a ping to confirm a successful connection
